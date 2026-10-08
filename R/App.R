@@ -6,7 +6,7 @@ library(gapminder)
 ui <- fluidPage(
   sidebarLayout(
     sidebarPanel(
-      selectizeInput("continent", "continent", choices = gapminder$continent)
+      selectizeInput("continent", "continent", choices = unique(gapminder$continent))
       ),
     mainPanel(
       tableOutput("data")
