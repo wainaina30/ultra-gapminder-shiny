@@ -453,26 +453,29 @@ perform_moct_allnum2 <- function(data, groups = character(), exclude = "year"){
 }
 
 
-
+#take to account:
+#skewness, outliers, sample size
 test3 <- function(x){
-  if(!is.numeric(x) | is_constant_vector(x)){
+  if(!is.numeric(x) || is_constant_vector(x) ||
+     #checks that it is a vector, check length >= 2
+     !is.null(dim(x)) || !length(x) >= 2){ 
     stop("conditions to calculate not met!")
   }else{
-    
-    mean(x[which(is.finite(x))])
+    tibble(
+    mean = mean(x[which(is.finite(x))]),
+    median = median(x[which(is.finite(x))])
+    )
   }
 }
 
-perform_moct_vars <- function(data, vars, groups = character()
-                          ,prop_cut_off = .95){
+perform_moct_vars <- function(data, vars, groups = character()){
+                          
   data |> 
     group_by(across(all_of(groups))) |> 
     summarise(
       across(
         all_of(vars),
-        {
-          if()
-        }
+        ~test3(.x)
     )
   )
 }
