@@ -475,10 +475,69 @@ perform_moct_vars <- function(data, vars, groups = character()){
     summarise(
       across(
         all_of(vars),
-        ~test3(.x)
+        ~test3(.x),
+        .names = "{.col}_{.fn}"
     )
   )
 }
+
+#error
+perform_moct_vars2 <- function(data, vars, groups = character()){
+                          
+  data |> 
+    group_by(across(all_of(groups))) |> 
+    summarise(
+      across(
+        all_of(vars),
+        ~{
+          if(!is.numeric(.x) || is_constant_vector(.x) ||
+             #checks that it is a vector, check length >= 2
+             !is.null(dim(.x)) || !length(.x) >= 2){ 
+            stop("conditions to calculate not met!")
+          }
+          list(
+            mean = mean(.x[which(is.finite(.x))]),
+            median = median(.x[which(is.finite(.x))])
+          )
+          
+        }
+        ,
+        .names = "{.col}_{.fn}"
+    )
+  )
+}
+
+perform_moct_vars3 <- function(data, vars, groups = character()){
+  check_values <- function(x){
+    if(!is.numeric(x) || is.complex(x) || !is.null(dim(x))){
+      stop("variables must be numeric vectors")
+    }
+    x <- x[is.finite(x)]
+    if(length(x) < 2L){
+      stop("Atleast two finite observations are required")
+    }
+    if(length(unique(x)) == 1){
+      stop("Cannot calculate variables of constant columns")
+    }
+    x
+  }
+  
+  data |> 
+    group_by(across(all_of(groups))) |> 
+    summarise(
+      across(
+        all_of(vars),
+        list(
+          mean = ~ mean(check_values(.x)),
+          median = ~ median(check_values(.x))
+        ),
+        .names = "{.col}_{.fn}"
+      ),
+      .groups = "drop"
+    )
+}
+
+
 
 perform_moct_test <- function(x){
   if(!is.numeric(x)){
