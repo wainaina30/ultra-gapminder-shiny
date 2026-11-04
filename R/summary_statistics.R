@@ -507,6 +507,11 @@ perform_moct_vars2 <- function(data, vars, groups = character()){
   )
 }
 
+#tommorow we deal with pivot longer the result and info table 
+#with imap_df and use and try out in shiny
+#applies if the user selects cols , what if they want computation
+#on all numeric cols using the same framework of this functin??
+
 perform_moct_vars3 <- function(data, vars, groups = character()){
   check_values <- function(x){
     if(!is.numeric(x) || is.complex(x) || !is.null(dim(x))){
@@ -529,24 +534,104 @@ perform_moct_vars3 <- function(data, vars, groups = character()){
         all_of(vars),
         list(
           mean = ~ mean(check_values(.x)),
-          median = ~ median(check_values(.x))
+          median = ~ median(check_values(.x)),
+          variance = ~var(check_values(.x)),
+          sd = ~sd(check_values(.x)),
+          MAD = ~mad(check_values(.x))
         ),
         .names = "{.col}_{.fn}"
       ),
       .groups = "drop"
     )
 }
+#notice the use of .value in names_to argument
+pivot_longer(t, cols = -continent,
+             names_to = c("variable",".value"),
+             values_to = "values", names_sep = "_")
 
-
-
-perform_moct_test <- function(x){
-  if(!is.numeric(x)){
-    stop("Numeric variables required!")
+#perform for all numeric cols, 
+#how do we incorporate it to shiny, such the user can choose to
+#do moct for all or select vars??
+perform_moct_allnum2 <- function(data, groups = character(), exclude = "year"){
+  check_values <- function(x){
+    if(!is.numeric(x) || is.complex(x) || !is.null(dim(x))){
+      stop("variables must be numeric vectors")
+    }
+    x <- x[is.finite(x)]
+    if(length(x) < 2L){
+      stop("Atleast two finite observations are required")
+    }
+    if(length(unique(x)) == 1){
+      stop("Cannot calculate variables of constant columns")
+    }
+    x
   }
-  if(){
-     mean(x[which(is.finite(x))])
-  }
+  
+   data |> 
+    group_by(across(all_of(groups))) |> 
+    summarise(
+      across(
+        where(is.numeric) & !any_of(exclude),
+        list(
+          mean = ~ mean(check_values(.x)),
+          median = ~ median(check_values(.x)),
+          variance = ~var(check_values(.x)),
+          sd = ~sd(check_values(.x)),
+          MAD = ~mad(check_values(.x))
+        ),
+        .names = "{.col}_{.fn}"
+      ),
+      .groups = "drop"
+      )
+    
 }
+pivot_longer(
+  perform_moct_allnum2(gapminder, groups = c("continent")),
+  cols = -continent,
+  names_to = c("variable", ".value"),
+  values_to = "value",
+  names_sep = "_"
+)
+
+
+#info table numeric cols 
+#error: returns Na for possible outliers and other cols 
+variable_info <- function(data){
+  data |> 
+    select(where(is.numeric)) |> 
+    imap_dfr(function(.x, .y){
+     # browser()
+      x <- .x[is.finite(.x)]
+      n <- length(.x)
+      n_finite <- length(x)
+      
+      
+      tibble(
+      variable = .y,
+      observations = n,
+      #browser(),
+      class = class(.x),
+      missing = sum(is.na(.x)),
+      prop_missing = sum(is.na(.x)) / length(x) * 100,
+      non_finite = sum(!is.finite(.x) & !is.na(.x)),
+      is_constant = length(unique(.x)) == 1,
+      cardinality = n_distinct(.x),
+      possible_outliers = if(n_finite > 0){
+        lower <- quantile(x, .25, na.rm = T) - 1.5 * IQR(x, na.rm = T)
+        upper <- quantile(x, .75, na.rm = T) +1.5 * IQR(x, na.rm = T)
+        sum(x < lower | x > upper)
+      }else{ NA_integer_}
+        ,
+      minimum = if(n_finite > 0) min(x),
+      maximum = if(n_finite > 0) max(x),
+      zeros = sum(.x == 0),
+      negative = sum(.x < 0)
+      
+      
+      )
+    })
+}
+
 
 test <- function(x){
   if(!is.numeric(x)){
