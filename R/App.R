@@ -3,6 +3,7 @@ library(shiny)
 library(bslib)
 library(gapminder)
 library(DT)
+library(tidyverse)
 
 ui <- fluidPage(
   sidebarLayout(
@@ -26,6 +27,7 @@ ui <- fluidPage(
         inputId = "variables",
         label = "variables",
         choices = names(gapminder),
+        multiple = T,
         options = list(
           placeholder = "Select variable"
         )
@@ -55,8 +57,15 @@ server <- function(input, output, session) {
   
   
   grouped_stats <- reactive({
-    req(input$groups)
-    #check wheather each groups has only one observation
+    
+    req(
+      length(input$groups) > 0 | 
+      length(input$variables) > 0
+    )
+    
+    #check groups sizes only when groups are selected.
+    
+    if(length(input$groups) > 0){
     group_sizes <- gapminder |> 
       group_by(across(all_of(input$groups))) |> 
       summarise(
@@ -78,10 +87,21 @@ server <- function(input, output, session) {
         )
       )
     )
+    }
     
-    result<- perform_moct_allnum2(
-      gapminder
-      ,groups = input$groups)
+    #when variables are not selected omit vars from function call
+    if(length(input$variables) == 0L){
+      perform_moct(
+        data = gapminder,
+        groups = input$groups
+      )
+    }else{
+     perform_moct(
+      gapminder,
+      vars = input$variables,
+      groups = input$groups
+      )
+    }
     })
     
 
@@ -97,13 +117,19 @@ server <- function(input, output, session) {
   })
   
   output$data_groups <- renderDT({
+    
+    req(grouped_stats())
+    grouped_stats() |> 
     pivot_longer(
-      grouped_stats(),
       cols= -all_of(input$groups),
       names_to = c("variable", ".value"),
       names_sep = "_",
       values_to = "value"
-    )
+    ) |> 
+      DT::datatable(
+        options = list(pageLength = 6),
+        rownames = FALSE
+      )
     
     
   })
