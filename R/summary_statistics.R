@@ -3,7 +3,8 @@
 library(gapminder)
 library(tidyverse)
 library(rlang)
-
+library(shiny)
+library(bslib)
 #what is the typical life expectancy
 ##by continent, year, country
 ###filter/group by var and calculate mean, median
@@ -592,6 +593,54 @@ pivot_longer(
   values_to = "value",
   names_sep = "_"
 )
+
+#use missing() to take into account whether vars were included or not
+perform_moct <- function(data,vars ,groups = character(), exclude = "year"){
+  check_values <- function(x){
+    if(!is.numeric(x) || is.complex(x) || !is.null(dim(x))){
+      stop("variables must be numeric vectors")
+    }
+    x <- x[is.finite(x)]
+    if(length(x) < 2L){
+      stop("Atleast two finite observations are required")
+    }
+    if(length(unique(x)) == 1){
+      stop("Cannot calculate variables of constant columns")
+    }
+    x
+  }
+  
+  selected_vars <- if(
+    missing(vars) || is.null(vars) || length(vars) == 0L
+  ){
+    data |> 
+      select(
+        where(is.numeric),
+        -any_of(exclude)
+      ) |> 
+      names()
+  }else{
+    vars
+  }
+  
+  data |> 
+    group_by(across(all_of(groups))) |> 
+    summarise(
+      across(
+        all_of(selected_vars),
+        list(
+          mean = ~ mean(check_values(.x)),
+          median = ~ median(check_values(.x)),
+          variance = ~var(check_values(.x)),
+          sd = ~sd(check_values(.x)),
+          MAD = ~mad(check_values(.x))
+        ),
+        .names = "{.col}_{.fn}"
+      ),
+      .groups = "drop"
+    )
+  
+}
 
 
 #info table numeric cols 
