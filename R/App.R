@@ -35,14 +35,18 @@ ui <- fluidPage(
       
       ),
     mainPanel(
+      tabsetPanel(
+        id = "main_tabs",
+        tabPanel(
+          "Filter Data",
+          DTOutput("data_filtbycont")
+        ),
+        tabPanel(
+          "Summary statistics",
+          DTOutput("data_groups")
+        )
+      )
       
-      h4("Descriptive statistics"),
-      DTOutput("data_groups"),
-      
-      hr(),
-      
-      h4("Filtered dataset"),
-      DTOutput("data_filtbycont")
     )
   )
 )
