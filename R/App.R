@@ -39,11 +39,17 @@ ui <- fluidPage(
         id = "main_tabs",
         tabPanel(
           "Filter Data",
-          DTOutput("data_filtbycont")
+          DTOutput("data_filtbycont"),
+          
+          h4("Variable information"),
+          DTOutput("variable_info_filt")
         ),
         tabPanel(
           "Summary statistics",
-          DTOutput("data_groups")
+          DTOutput("data_groups"),
+          
+          h4("Variable information"),
+          DTOutput("variable_info_summary")
         )
       )
       
@@ -134,8 +140,26 @@ server <- function(input, output, session) {
         options = list(pageLength = 6),
         rownames = FALSE
       )
-    
-    
+  })
+  
+  output$variable_info_filt <- renderDT({
+    variable_info(gapminder) |> 
+      DT::datatable(
+        options = list(pageLength = 5,
+                       scrollX  = T
+        ),
+        rownames = F
+      )
+  })
+  
+  output$variable_info_summary <- renderDT({
+    variable_info(gapminder) |> 
+      DT::datatable(
+        options = list(pageLength = 5,
+                       scrollX  = T
+        ),
+        rownames = F
+      )
   })
 }
 
